@@ -16,9 +16,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
 //    var session: ARSession!
 
+    var text: String?
+
     private var requests = [VNRequest]()
     var screenCenter: CGPoint?
-    var textNode: SCNNode?
 
     @IBOutlet var sceneView: ARSCNView!
     
@@ -46,6 +47,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         // coreML vision
         setupVision()
+
+        sceneView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.handleTag(gestureRecognizer:))))
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -53,8 +56,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingSessionConfiguration()
-        configuration.planeDetection = .horizontal
-        
+//        configuration.planeDetection = .horizontal
+
         // Run the view's session
         sceneView.session.run(configuration)
     }
@@ -71,83 +74,38 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Release any cached data, images, etc that aren't in use.
     }
 
-//    func updateText() {
-//        guard let screenCenter = screenCenter else { return }
-//
-//        let (worldPos, planeAnchor, _) = worldPositionFromScreenPosition(screenCenter, objectPos: textNode?.position)
-//        if let worldPos = worldPos {
-//            textNode?.position = worldPos
-//        }
-//    }
+//    func addText(text: String) {
+    @objc
+    func handleTag(gestureRecognizer: UITapGestureRecognizer) {
+        guard let currentFrame = sceneView.session.currentFrame else { return }
 
-//    func worldPositionFromScreenPosition(_ position: CGPoint,
-//                                         objectPos: SCNVector3?,
-//                                         infinitePlane: Bool = false) -> (position: SCNVector3?, planeAnchor: ARPlaneAnchor?, hitAPlane: Bool) {
+//        // Create an image plane using a snapshot of the view
+//        let imagePlain = SCNPlane(width: sceneView.bounds.width / 6000,
+//                                  height: sceneView.bounds.height / 6000)
+//        imagePlain.firstMaterial?.diffuse.contents = sceneView.snapshot()
+//        imagePlain.firstMaterial?.lightingModel = .constant
 //
-//        // -------------------------------------------------------------------------------
-//        // 1. Always do a hit test against exisiting plane anchors first.
-//        //    (If any such anchors exist & only within their extents.)
+//        let plainNode = SCNNode(geometry: imagePlain)
+//        sceneView.scene.rootNode.addChildNode(plainNode)
 //
-//        let planeHitTestResults = sceneView.hitTest(position, types: .existingPlaneUsingExtent)
-//        if let result = planeHitTestResults.first {
-//
-//            let planeHitTestPosition = SCNVector3.positionFromTransform(result.worldTransform)
-//            let planeAnchor = result.anchor
-//
-//            // Return immediately - this is the best possible outcome.
-//            return (planeHitTestPosition, planeAnchor as? ARPlaneAnchor, true)
-//        }
-//
-//        // -------------------------------------------------------------------------------
-//        // 2. Collect more information about the environment by hit testing against
-//        //    the feature point cloud, but do not return the result yet.
-//
-//        var featureHitTestPosition: SCNVector3?
-//        var highQualityFeatureHitTestResult = false
-//
-//        let highQualityfeatureHitTestResults = sceneView.hitTestWithFeatures(position, coneOpeningAngleInDegrees: 18, minDistance: 0.2, maxDistance: 2.0)
-//
-//        if !highQualityfeatureHitTestResults.isEmpty {
-//            let result = highQualityfeatureHitTestResults[0]
-//            featureHitTestPosition = result.position
-//            highQualityFeatureHitTestResult = true
-//        }
-//
-//        // -------------------------------------------------------------------------------
-//        // 3. If desired or necessary (no good feature hit test result): Hit test
-//        //    against an infinite, horizontal plane (ignoring the real world).
-//
-//        if (infinitePlane) || !highQualityFeatureHitTestResult {
-//
-//            let pointOnPlane = objectPos ?? SCNVector3Zero
-//
-//            let pointOnInfinitePlane = sceneView.hitTestWithInfiniteHorizontalPlane(position, pointOnPlane)
-//            if pointOnInfinitePlane != nil {
-//                return (pointOnInfinitePlane, nil, true)
-//            }
-//        }
-//
-//        // -------------------------------------------------------------------------------
-//        // 4. If available, return the result of the hit test against high quality
-//        //    features if the hit tests against infinite planes were skipped or no
-//        //    infinite plane was hit.
-//
-//        if highQualityFeatureHitTestResult {
-//            return (featureHitTestPosition, nil, false)
-//        }
-//
-//        // -------------------------------------------------------------------------------
-//        // 5. As a last resort, perform a second, unfiltered hit test against features.
-//        //    If there are no features in the scene, the result returned here will be nil.
-//
-//        let unfilteredFeatureHitTestResults = sceneView.hitTestWithFeatures(position)
-//        if !unfilteredFeatureHitTestResults.isEmpty {
-//            let result = unfilteredFeatureHitTestResults[0]
-//            return (result.position, nil, false)
-//        }
-//
-//        return (nil, nil, false)
-//    }
+//        // Set transform of node to be 10cm in front of camera
+//        var translation = matrix_identity_float4x4
+//        translation.columns.3.z = -0.1
+//        plainNode.simdTransform = matrix_multiply(currentFrame.camera.transform, translation)
+
+        let scnText = SCNText(string: String(text ?? "ERROR"), extrusionDepth: 1)
+        scnText.firstMaterial?.lightingModel = .constant
+
+        let textScale = 0.01 / Float(scnText.font.pointSize)
+        let textNode = SCNNode(geometry: scnText)
+        textNode.scale = SCNVector3Make(textScale, textScale, textScale)
+        sceneView.scene.rootNode.addChildNode(textNode)
+
+        // Set transform of node to be 10cm in front of camera
+        var translation = textNode.simdTransform
+        translation.columns.3.z = -0.2
+        textNode.simdTransform = matrix_multiply(currentFrame.camera.transform, translation)
+    }
 
     // MARK: - coreML vision logic
     func setupVision() {
@@ -177,13 +135,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // add 3d text
             if let firstPrediction = classifications.first {
                 if firstPrediction.confidence > 0.1 {
-                    let scnText = SCNText(string: firstPrediction.identifier, extrusionDepth: 1)
-                    let textScale = 0.01 / Float(scnText.font.pointSize)
-                    let textNode = SCNNode(geometry: scnText)
-                    textNode.scale = SCNVector3Make(textScale, textScale, textScale)
-                    textNode.position = self.sceneView.scene.rootNode.position
-                    self.textNode = textNode
-                    self.sceneView.scene.rootNode.addChildNode(textNode)
+//                    self.addText(text: firstPrediction.identifier)
+                    if let t = firstPrediction.identifier.split(separator: ",").first {
+                        self.text = String(t)
+                    }
                 }
             }
 
@@ -202,20 +157,21 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 //        return node
 //    }
 
-//    func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
-//        refreshFeaturePoints()
+//    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+//        // This visualization covers only detected planes.
+//        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
 //
-//        DispatchQueue.main.async {
-//            self.updateFocusSquare()
-//            self.hitTestVisualization?.render()
+//        // Create a SceneKit plane to visualize the node using its position and extent.
+//        let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x), height: CGFloat(planeAnchor.extent.z))
+//        let planeNode = SCNNode(geometry: plane)
+//        planeNode.position = SCNVector3Make(planeAnchor.center.x, 0, planeAnchor.center.z)
 //
-//            // If light estimation is enabled, update the intensity of the model's lights and the environment map
-//            if let lightEstimate = self.session.currentFrame?.lightEstimate {
-//                self.enableEnvironmentMapWithIntensity(lightEstimate.ambientIntensity / 40)
-//            } else {
-//                self.enableEnvironmentMapWithIntensity(25)
-//            }
-//        }
+//        // SCNPlanes are vertically oriented in their local coordinate space.
+//        // Rotate it to match the horizontal orientation of the ARPlaneAnchor.
+//        planeNode.transform = SCNMatrix4MakeRotation(-Float.pi / 2, 1, 0, 0)
+//
+//        // ARKit owns the node corresponding to the anchor, so make the plane a child node.
+//        node.addChildNode(planeNode)
 //    }
 
     func session(_ session: ARSession, didFailWithError error: Error) {
