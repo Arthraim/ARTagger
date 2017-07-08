@@ -43,7 +43,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Set the scene to the view
         sceneView.scene = scene
 
-        sceneView.session.delegate = self;
+        sceneView.session.delegate = self
 
         // coreML vision
         setupVision()
@@ -79,24 +79,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func handleTag(gestureRecognizer: UITapGestureRecognizer) {
         guard let currentFrame = sceneView.session.currentFrame else { return }
 
-//        // Create an image plane using a snapshot of the view
-//        let imagePlain = SCNPlane(width: sceneView.bounds.width / 6000,
-//                                  height: sceneView.bounds.height / 6000)
-//        imagePlain.firstMaterial?.diffuse.contents = sceneView.snapshot()
-//        imagePlain.firstMaterial?.lightingModel = .constant
-//
-//        let plainNode = SCNNode(geometry: imagePlain)
-//        sceneView.scene.rootNode.addChildNode(plainNode)
-//
-//        // Set transform of node to be 10cm in front of camera
-//        var translation = matrix_identity_float4x4
-//        translation.columns.3.z = -0.1
-//        plainNode.simdTransform = matrix_multiply(currentFrame.camera.transform, translation)
-
         let scnText = SCNText(string: String(text ?? "ERROR"), extrusionDepth: 1)
         scnText.firstMaterial?.lightingModel = .constant
 
-        let textScale = 0.01 / Float(scnText.font.pointSize)
+        let textScale = 0.02 / Float(scnText.font.pointSize)
         let textNode = SCNNode(geometry: scnText)
         textNode.scale = SCNVector3Make(textScale, textScale, textScale)
         sceneView.scene.rootNode.addChildNode(textNode)
@@ -105,6 +91,34 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         var translation = textNode.simdTransform
         translation.columns.3.z = -0.2
         textNode.simdTransform = matrix_multiply(currentFrame.camera.transform, translation)
+
+        addHomeTags(currentFrame: currentFrame)
+    }
+
+    func addHomeTags(currentFrame: ARFrame) {
+        if (text == "mouse") {
+            addHomeTag(imageName: "razer", currentFrame: currentFrame)
+        } else if (text == "iPod") {
+            addHomeTag(imageName: "nokia", currentFrame: currentFrame)
+        }
+    }
+
+    func addHomeTag(imageName: String, currentFrame: ARFrame) {
+        let image = UIImage(named: imageName)
+        // Create an image plane using a snapshot of the view
+        let imagePlain = SCNPlane(width: sceneView.bounds.width / 6000,
+                                  height: sceneView.bounds.height / 6000)
+        imagePlain.firstMaterial?.diffuse.contents = image
+        imagePlain.firstMaterial?.lightingModel = .constant
+
+        let plainNode = SCNNode(geometry: imagePlain)
+        sceneView.scene.rootNode.addChildNode(plainNode)
+
+        // Set transform of node to be 10cm in front of camera
+        var translation = matrix_identity_float4x4
+        translation.columns.3.z = -0.22
+        translation.columns.3.y = 0.05
+        plainNode.simdTransform = matrix_multiply(currentFrame.camera.transform, translation)
     }
 
     // MARK: - coreML vision logic
