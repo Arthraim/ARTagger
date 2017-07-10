@@ -20,6 +20,7 @@ The app is for tagging stuff on real world, to avoid letting users to input tag 
 1. **This is a hackathon project, so code quality doesn't represent my real situation  =.=**
 2. You can comment out line 95 `addHomeTags(currentFrame: currentFrame)` if you don't like my HomeTag idea. LOL
 3. There's very little change I would iterate this again....
+4. Do you realize there's a keynote in this repo, that's for my Hackathon demo...
 
 
 
